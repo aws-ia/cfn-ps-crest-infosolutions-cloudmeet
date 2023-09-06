@@ -1,3 +1,44 @@
 // Include any postdeployment steps here, such as steps necessary to test that the deployment was successful. If there are no postdeployment steps, leave this file empty.
 
 == Postdeployment steps
+The system requires a valid DNS entry that points to the Network Load Balancer's Amazon Resource Name (ARN). The Network Load Balancer must have SSL certificates and Elastic IP addresses.
+
+. Update your DNS by adding two entries, one for each web tier and video-call tier. Take the ARNs of the Network Load Balancers and add the appropriate entry to your DNS server.
+. After the DNS propagates, the server is accessible through the domain name you provided in the template.
+. Test your login credentials using `jsnow` for both the user name and password. You can change and disable the test user accounts via the identity-management system that's included in the stack.
+
+=== Test the deployment
+
+When the AWS CloudFormation template creates the stack, the Fargate instance runs in your AWS cluster. The {partner-product-short-name} application installs in the Amazon ECS host instances.
+
+==== Evaluation
+Verify that the {partner-product-short-name} application is running and accessible:
+
+. In the AWS CloudFormation console, navigate to *Service Stack*, and choose the *Outputs* tab.
+. Note the value of the corresponding *Key Attributes*:
+```
+** KEY Attribute1 - RCHATEVALNLBURL
+** KEY Attribute2 - JVBEVALNLBURL
+** KEY Attribute3 - CloudmeetDomain
+** KEY Attribute4 - CloudcallDomain
+```
+[start=3]
+. Provide the *KEY Attributes* to support@progentys.com. The Progentys support team maps the shared values of these attributes to the provided domain name.
+. When Progentys completes the mapping, customers can use a web browser to access the URL (https://cloudmeetdomain/cloudmeet).
+. By default, the user name and password are `jsnow`.
+
+==== Production
+To verify that the {partner-product-short-name} application is running and accessible, follow this step:
+
+. In the AWS CloudFormation console, choose the *Outputs* tab from *Service Stack*.
+. Note the value of the corresponding *KEY Attribute*:
+```
+** KEY Attribute - CloudmeetDomain
+```
+[start=3]
+. Use a web browser to access the URL (https://cloudmeetdomain/cloudmeet).
+. By default, the user name and password are `jsnow`.
+
+==== Security
+At startup, only port 22 is open. You can restrict this port by providing an IP address or range of IP addresses for the AdminIngressLocation parameter. If you want to open
+these ports to everyone, set the IP address to `0.0.0.0/0`. This is not advised, however, because your instances will be less secure.
