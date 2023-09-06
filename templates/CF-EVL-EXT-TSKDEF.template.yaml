@@ -1,0 +1,753 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  This AWS CloudFormation template to create a new Task Definition in the Cluster stack in the existing vpc to work with Fargate container Definition (evaluation version). (qs-1shsu3b5k)
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9006 # temporary to get rid of warnings
+        - W9002 # temporary to get rid of warnings
+        - W9003 # temporary to get rid of warnings
+        - W9901 # Not passing all the default parameters to reduce verbosity
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Task Definition configuration
+      Parameters:
+      - Password
+      - CompanyName
+      - CloudmeetDomain
+      - CloudcallDomain
+      - ElasticFileSystemResource
+      - TaskExecutionRole
+      - TaskScaleRole
+    - Label: 
+        default: 'EFS AccessPoint Parameters'
+      Parameters:
+      - EfsAccessPoint1
+      - EfsAccessPoint2
+      - EfsAccessPoint3
+      - EfsAccessPoint4
+      - EfsAccessPoint5
+      - EfsAccessPoint6
+      - EfsAccessPoint7
+      - EfsAccessPoint8
+    ParameterLabels:
+      Password:
+        default: Password
+      CompanyName:
+        default: CompanyName
+      CloudmeetDomain:
+        default: CloudmeetDomain
+      CloudcallDomain:
+        default: CloudcallDomain
+      ElasticFileSystemResource:
+        default: ElasticFileSystemResource
+      TaskExecutionRole:
+        default: TaskExecutionRole
+      TaskScaleRole:
+        default: TaskScaleRole
+      EfsAccessPoint1:
+        default: EfsAccessPoint1
+      EfsAccessPoint2:
+        default: EfsAccessPoint2
+      EfsAccessPoint3:
+        default: EfsAccessPoint3
+      EfsAccessPoint4:
+        default: EfsAccessPoint4
+      EfsAccessPoint5:
+        default: EfsAccessPoint5
+      EfsAccessPoint6:
+        default: EfsAccessPoint6
+      EfsAccessPoint7:
+        default: EfsAccessPoint7
+      EfsAccessPoint8:
+        default: EfsAccessPoint8
+     
+Parameters:
+  Password:
+    Description: Password is required for multiple internal Service (Mandatory)
+    Type: String
+    NoEcho: true
+    Default: ''  
+  CloudmeetDomain:
+    Description: Cloudmeet Domain Name (Mandatory)
+    Type: String
+    NoEcho: True
+    Default: 'cloudmeet.biz'
+  CloudcallDomain:
+    Description: Cloudcall Domain Name (Mandatory)
+    Type: String
+    NoEcho: True
+    Default: call.cloudmeet.biz
+  CompanyName:
+    Description: Subdomain Name (Mandatory)
+    Type: String
+    NoEcho: True
+    Default: ''
+  ElasticFileSystemResource:
+    Description: EFS Name required for Container Storage
+    Type: String
+    Default: ''   
+  TaskExecutionRole:
+    Description: This is TaskExecutionRole required for TaskDefinition
+    Type: String
+    Default: ''
+  TaskScaleRole:
+    Description: This is TaskScaleRole required for TaskDefinition
+    Type: String
+    Default: '' 
+  EfsAccessPoint1:
+    Description: EFS Accesspoint 1 required for Container Storage
+    Type: String
+    Default: ''     
+  EfsAccessPoint2:
+    Description: EFS Accesspoint 2 required for Container Storage
+    Type: String
+    Default: ''     
+  EfsAccessPoint3:
+    Description: EFS Accesspoint 3 required for Container Storage
+    Type: String
+    Default: ''     
+  EfsAccessPoint4:
+    Description: EFS Accesspoint 4 required for Container Storage
+    Type: String
+    Default: ''     
+  EfsAccessPoint5:
+    Description: EFS Accesspoint 5 required for Container Storage
+    Type: String
+    Default: ''     
+  EfsAccessPoint6:
+    Description: EFS Accesspoint 6 required for Container Storage
+    Type: String
+    Default: ''     
+  EfsAccessPoint7:
+    Description: EFS Accesspoint 7 required for Container Storage
+    Type: String
+    Default: ''     
+  EfsAccessPoint8:
+    Description: EFS Accesspoint 8 required for Container Storage
+    Type: String
+    Default: ''     
+
+Resources:
+  RchatLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: rchat-log
+  JitsiLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: jitsi-log
+  JvbLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: jvb-log	
+      
+  ECSTDRCHAT:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      ContainerDefinitions:
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref RchatLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          PortMappings:
+            - HostPort: 3306
+              Protocol: tcp
+              ContainerPort: 3306
+          HealthCheck:
+            Retries: 3
+            Command:
+              - CMD-SHELL
+              - 'mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD'
+            Timeout: 5
+            Interval: 30
+            StartPeriod: 10
+          Command:
+            - '--default-authentication-plugin=mysql_native_password'
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Strapi_KeyClk_Mdb_Environment_File.env'
+              Type: s3
+          Environment:
+            - Name: MYSQL_PASSWORD
+              Value: !Ref Password
+            - Name: MYSQL_ROOT_PASSWORD
+              Value: !Ref Password
+          MountPoints:
+            - ContainerPath: /var/lib/mysql
+              SourceVolume: mariadb_volume
+          Image: 'public.ecr.aws/o4e1o9s6/mariadb-cloudmeet'
+          Essential: True
+          DockerLabels:
+            Name: mariadb
+          Name: mariadb
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref RchatLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          PortMappings:
+            - HostPort: 1337
+              Protocol: tcp
+              ContainerPort: 1337
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Strapi_KeyClk_Mdb_Environment_File.env'
+              Type: s3
+          Environment:
+            - Name: JITSISERVERNAME
+              Value: !Join
+                - ''
+                - - !Ref CompanyName
+                  - '-'
+                  - !Ref CloudcallDomain
+            - Name: SERVERNAME
+              Value: !Join
+                - ''
+                - - !Ref CompanyName
+                  - '.'
+                  - !Ref CloudmeetDomain
+            - Name: DATABASE_PASSWORD
+              Value: !Ref Password
+          Image: 'public.ecr.aws/o4e1o9s6/strapi-cloudmeet:latest'
+          DependsOn:
+            - ContainerName: mariadb
+              Condition: HEALTHY
+          Essential: False
+          Name: strapi
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref RchatLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          PortMappings:
+            - HostPort: 8080
+              Protocol: tcp
+              ContainerPort: 8080
+          Command:
+            - '-b'
+            - 0.0.0.0
+            - '-Dkeycloak.import=/tmp/cloudmeet-realm.json'
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Strapi_KeyClk_Mdb_Environment_File.env'
+              Type: s3
+          Environment:
+            - Name: DB_PASSWORD
+              Value: 'keycloak'
+            - Name: KEYCLOAK_PASSWORD
+              Value: !Ref Password           
+          Image: 'public.ecr.aws/o4e1o9s6/keycloakcloudmeet:latest'
+          DependsOn:
+            - ContainerName: mariadb
+              Condition: START
+          Essential: false
+          Name: keycloak
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref RchatLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          PortMappings:
+            - HostPort: 443
+              Protocol: tcp
+              ContainerPort: 443
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Strapi_KeyClk_Mdb_Environment_File.env'
+              Type: s3
+          Environment:
+            - Name: R53_HOST
+              Value: !Join
+                - ''
+                - - !Ref CompanyName
+                  - '.'
+                  - !Ref CloudmeetDomain
+            - Name: SERVERNAME
+              Value: !Join
+                - ''
+                - - !Ref CompanyName
+                  - '.'
+                  - !Ref CloudmeetDomain
+            - Name: JITSISERVERNAME
+              Value: !Join
+                - ''
+                - - !Ref CompanyName
+                  - '-'
+                  - !Ref CloudcallDomain
+          Image: 'public.ecr.aws/o4e1o9s6/webcloudmeetssl:latest'
+          DependsOn:
+            - ContainerName: keycloak
+              Condition: START
+            - ContainerName: strapi
+              Condition: START
+          Essential: false
+          Name: cm-web
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref RchatLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          EntryPoint:
+            - /bin/bash
+            - '-c'
+          PortMappings: []
+          Command:
+            - >-
+              mongod --smallfiles --oplogSize 128 --replSet rs0
+              --storageEngine=mmapv1
+          Environment: []
+          MountPoints:
+            - ContainerPath: /data/db
+              SourceVolume: mongodb_volume
+          Image: 'mongo:4.0'
+          Essential: True
+          DockerLabels:
+            traefik.enable: 'false'
+          Name: mongodb
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref RchatLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          EntryPoint:
+            - /bin/bash
+            - '-c'
+          PortMappings: []
+          Command:
+            - >-
+              for i in `seq 1 30`; do node main.js && s=$$? && break || s=$$?;
+              echo "Tried $$i times. Waiting 10 secs..."; sleep 10; done; (exit
+              $$s)
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Rocketchat_Environment_File.env'
+              Type: s3
+          Environment:
+            - Name: ROOT_URL
+              Value: !Join
+                - ''
+                - - 'https://'
+                  - !Ref CompanyName
+                  - '.'
+                  - !Ref CloudmeetDomain
+                  - '/chat'
+            - Name: Accounts_OAuth_Custom_Crestkeycloak_url
+              Value: !Join
+                - ''
+                - - 'https://'
+                  - !Ref CompanyName
+                  - '.'
+                  - !Ref CloudmeetDomain
+                  - '/auth'
+            - Name: ADMIN_PASS
+              Value: !Ref Password
+          MountPoints:
+            - ContainerPath: /app/uploads
+              SourceVolume: rocketchat_volume
+          Image: 'rocketchat/rocket.chat:latest'
+          DependsOn:
+            - ContainerName: mongodbreplica
+              Condition: COMPLETE
+            - ContainerName: mongodb
+              Condition: START
+          Essential: False
+          Name: rocketchat
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref RchatLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          EntryPoint:
+            - /bin/bash
+            - '-c'
+          PortMappings: []
+          Command:
+            - >-
+              for i in `seq 1 30`; do mongo localhost/rocketchat --eval
+              "rs.initiate()" && s=$$? && break || s=$$?; echo 'Tried $$i times.
+              Waiting 15 secs...'; sleep 15; done; (exit $$s)
+          Environment: []
+          Image: 'mongo:4.0'
+          DependsOn:
+            - ContainerName: mongodb
+              Condition: START
+          Essential: False
+          Name: mongodbreplica
+      PlacementConstraints: []
+      Memory: '16384'
+      TaskRoleArn: !Ref TaskScaleRole
+      Family: cloudmeet-rchat-td
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '4096'
+      Volumes:
+        - EFSVolumeConfiguration:
+            FilesystemId: !Ref ElasticFileSystemResource
+            AuthorizationConfig:
+              IAM: ENABLED
+              AccessPointId: !Ref EfsAccessPoint1
+            TransitEncryption: ENABLED
+            RootDirectory: /
+          Name: mariadb_volume
+        - EFSVolumeConfiguration:
+            FilesystemId: !Ref ElasticFileSystemResource
+            AuthorizationConfig:
+              IAM: ENABLED
+              AccessPointId: !Ref EfsAccessPoint2
+            TransitEncryption: ENABLED
+            RootDirectory: /
+          Name: mongodb_volume
+        - EFSVolumeConfiguration:
+            FilesystemId: !Ref ElasticFileSystemResource
+            AuthorizationConfig:
+              IAM: ENABLED
+              AccessPointId: !Ref EfsAccessPoint3
+            TransitEncryption: ENABLED
+            RootDirectory: /
+          Name: rocketchat_volume
+
+  ECSTDJITSI:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      ContainerDefinitions:
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref JitsiLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          EntryPoint: []
+          PortMappings:
+            - HostPort: 80
+              Protocol: tcp
+              ContainerPort: 80
+            - HostPort: 443
+              Protocol: tcp
+              ContainerPort: 443
+          Command: []
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Jitsi_Environment_File_ssl.env'
+              Type: s3
+          Environment:
+            - Name: R53_HOST
+              Value: !Join
+                - ''
+                - - !Ref CompanyName
+                  - '-'
+                  - !Ref CloudcallDomain
+            - Name: PUBLIC_URL
+              Value: !Join
+                - ''
+                - - 'https://'
+                  - !Ref CompanyName
+                  - '-'
+                  - !Ref CloudcallDomain
+          MountPoints:
+            - ContainerPath: /config
+              SourceVolume: jitsi_web_volume
+          Image: 'public.ecr.aws/o4e1o9s6/jitsiwebssl'
+          DependsOn:
+            - ContainerName: jitsi-prosody
+              Condition: START
+          Essential: false
+          Name: jitsi-web
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref JitsiLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          EntryPoint: []
+          PortMappings:
+            - HostPort: 5222
+              Protocol: tcp
+              ContainerPort: 5222
+            - HostPort: 5347
+              Protocol: tcp
+              ContainerPort: 5347
+            - HostPort: 5280
+              Protocol: tcp
+              ContainerPort: 5280
+          Command: []
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Jitsi_Environment_File_ssl.env'
+              Type: s3
+          Environment:
+            - Name: JIBRI_RECORDER_PASSWORD
+              Value: !Ref Password
+            - Name: JIBRI_XMPP_PASSWORD
+              Value: !Ref Password
+            - Name: JICOFO_AUTH_PASSWORD
+              Value: !Ref Password
+            - Name: JIGASI_XMPP_PASSWORD
+              Value: !Ref Password
+            - Name: JVB_AUTH_PASSWORD
+              Value: !Ref Password              
+            - Name: JICOFO_COMPONENT_SECRET
+              Value: !Ref Password
+            - Name: PUBLIC_URL
+              Value: !Join
+                - ''
+                - - 'https://'
+                  - !Ref CompanyName
+                  - '-'
+                  - !Ref CloudcallDomain              
+          MountPoints:
+            - ContainerPath: /config
+              SourceVolume: jitsi_prosody_volume
+          Image: 'jitsi/prosody:latest'
+          Essential: True
+          Name: jitsi-prosody
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref JitsiLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          EntryPoint: []
+          PortMappings: []
+          Command: []
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Jitsi_Environment_File_ssl.env'
+              Type: s3
+          Environment:
+            - Name: JIBRI_RECORDER_PASSWORD
+              Value: !Ref Password
+            - Name: JIBRI_XMPP_PASSWORD
+              Value: !Ref Password
+            - Name: JICOFO_AUTH_PASSWORD
+              Value: !Ref Password
+            - Name: JICOFO_COMPONENT_SECRET
+              Value: !Ref Password
+            - Name: JIGASI_XMPP_PASSWORD
+              Value: !Ref Password
+            - Name: JVB_AUTH_PASSWORD
+              Value: !Ref Password             
+          MountPoints:
+            - ContainerPath: /config
+              SourceVolume: jitsi_jicofo_volume
+          Image: 'jitsi/jicofo:latest'
+          DependsOn:
+            - ContainerName: jitsi-prosody
+              Condition: START
+          Essential: True
+          Name: jitsi-jicofo
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref JitsiLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          EntryPoint: []
+          PortMappings:
+            - HostPort: 4096
+              Protocol: udp
+              ContainerPort: 4096
+            - HostPort: 10000
+              Protocol: udp
+              ContainerPort: 10000
+            - HostPort: 4443
+              Protocol: tcp
+              ContainerPort: 4443
+          Command: []
+          Environment:
+            - Name: PUBLIC_URL
+              Value: !Join
+                - ''
+                - - 'https://'
+                  - !Ref CompanyName
+                  - '-'
+                  - !Ref CloudcallDomain         
+            - Name: JIBRI_RECORDER_PASSWORD
+              Value: !Ref Password
+            - Name: JIBRI_XMPP_PASSWORD
+              Value: !Ref Password
+            - Name: JICOFO_AUTH_PASSWORD
+              Value: !Ref Password
+            - Name: JICOFO_COMPONENT_SECRET
+              Value: !Ref Password
+            - Name: JIGASI_XMPP_PASSWORD
+              Value: !Ref Password
+            - Name: JVB_AUTH_PASSWORD
+              Value: !Ref Password          
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/Jitsi_Environment_File_ssl.env'
+              Type: s3
+          MountPoints:
+            - ContainerPath: /config
+              SourceVolume: jitsi_jvb_volume
+          Image: 'jitsi/jvb:latest'
+          DependsOn:
+            - ContainerName: jitsi-prosody
+              Condition: START
+          Essential: True
+          Name: jitsi-jvb
+      PlacementConstraints: []
+      Memory: '4096'
+      TaskRoleArn: !Ref TaskScaleRole
+      Family: cloudmeet-jitsi-td
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '2048'
+      Volumes:
+        - EFSVolumeConfiguration:
+            FilesystemId: !Ref ElasticFileSystemResource
+            AuthorizationConfig:
+              IAM: ENABLED
+              AccessPointId: !Ref EfsAccessPoint4
+            TransitEncryption: ENABLED
+            RootDirectory: /
+          Name: jitsi_web_volume
+        - EFSVolumeConfiguration:
+            FilesystemId: !Ref ElasticFileSystemResource
+            AuthorizationConfig:
+              IAM: ENABLED
+              AccessPointId: !Ref EfsAccessPoint5
+            TransitEncryption: ENABLED
+            RootDirectory: /
+          Name: jitsi_prosody_volume
+        - EFSVolumeConfiguration:
+            FilesystemId: !Ref ElasticFileSystemResource
+            AuthorizationConfig:
+              IAM: ENABLED
+              AccessPointId: !Ref EfsAccessPoint6
+            TransitEncryption: ENABLED
+            RootDirectory: /
+          Name: jitsi_jicofo_volume
+        - EFSVolumeConfiguration:
+            FilesystemId: !Ref ElasticFileSystemResource
+            AuthorizationConfig:
+              IAM: ENABLED
+              AccessPointId: !Ref EfsAccessPoint7
+            TransitEncryption: ENABLED
+            RootDirectory: /
+          Name: jitsi_jvb_volume
+
+  ECSTDJVB:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      ContainerDefinitions:
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref JvbLogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          EntryPoint: []
+          PortMappings:
+            - HostPort: 4096
+              Protocol: udp
+              ContainerPort: 4096
+            - HostPort: 10000
+              Protocol: udp
+              ContainerPort: 10000
+            - HostPort: 4443
+              Protocol: tcp
+              ContainerPort: 4443
+          Command: []
+          EnvironmentFiles:
+            - Value: !Join
+                - ''
+                - - 'arn:aws:s3:::cloudmeetenv-'
+                  - !Ref 'AWS::Region'
+                  - '/'
+                  - 'envfiles/JVB_Environment_File.env'
+              Type: s3
+          Environment:
+            - Name: JVB_AUTH_PASSWORD
+              Value: !Ref Password      
+          MountPoints:
+            - ContainerPath: /config
+              SourceVolume: jitsi_jvb_volume2
+          Image: 'jitsi/jvb:latest'
+          Essential: True
+          Name: jitsi-jvb2
+      PlacementConstraints: []
+      Memory: '4096'
+      TaskRoleArn: !Ref TaskScaleRole
+      Family: cloudmeet-jvb-td
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '2048'
+      Volumes:
+        - EFSVolumeConfiguration:
+            FilesystemId: !Ref ElasticFileSystemResource
+            AuthorizationConfig:
+              IAM: ENABLED
+              AccessPointId: !Ref EfsAccessPoint8
+            TransitEncryption: ENABLED
+            RootDirectory: /
+          Name: jitsi_jvb_volume2
+Outputs:
+  ECSTDJVB:
+    Description: The JVB Task Definition for ECS Service
+    Value: !Ref 'ECSTDJVB'
+    Export:
+      Name: !Join [ ':', [ !Ref 'AWS::StackName', 'ECSTDJVB' ] ]
+  ECSTDJITSI:
+    Description: The JITSI Task Definition for ECS Service
+    Value: !Ref 'ECSTDJITSI'
+    Export:
+      Name: !Join [ ':', [ !Ref 'AWS::StackName', 'ECSTDJITSI' ] ]
+  ECSTDRCHAT:
+    Description: The RCHAT Task Definition for ECS Service
+    Value: !Ref 'ECSTDRCHAT'
+    Export:
+      Name: !Join [ ':', [ !Ref 'AWS::StackName', 'ECSTDRCHAT' ] ]

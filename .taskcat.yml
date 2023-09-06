@@ -1,33 +1,35 @@
 project:
-  name: cfn-sample-template
-  owner: quickstart@amazon.com
+  name: quickstart-crest-infosolutions-cloudmeet
+  owner: quickstart-eng@amazon.com
   package_lambda: false
+  parameters:
+    QSS3BucketName: $[taskcat_autobucket]
+    QSS3BucketRegion: $[taskcat_current_region]
+    QSS3KeyPrefix: 'quickstart-crest-infosolutions-cloudmeet/'
   regions:
   - ap-northeast-1
   - ap-northeast-2
+  #- ap-south-1
   - ap-southeast-1
   - ap-southeast-2
+  - ca-central-1
   - eu-central-1
   - eu-west-1
+  - eu-west-2
   - sa-east-1
   - us-east-1
+  - us-east-2
   - us-west-1
   - us-west-2
+  s3_bucket: ''
 tests:
-  sample:
+  cloudmeet-ap-southeast-1-2-AZ:
     parameters:
-      Param1: 'Inputs to Stack'
-      # Examples: of other taskcat dynamic input parameters for more into see http://taskcat.io
-      #
-      #      AvailabilityZones: $[taskcat_genaz_3]
-      #      ByteValue: 1
-      #      PasswordA: $[taskcat_genpass_8A]
-      #      PasswordB: $[taskcat_genpass_32S]
-      #      RandomNumber: $[taskcat_random-numbers]
-      #      RandomString: $[taskcat_random-string]
-      #      StackName: TestStack
-      #      UUID: $[taskcat_genuuid]
-      #
+      AvailabilityZones: $[taskcat_genaz_2]
+      CompanyName: $[taskcat_genpass_12A]
+      Password: P!$[taskcat_genpass_12A]
+      CloudmeetDomain: Cloudmeet.example.com
+      CloudcallDomain: Cloudmeet.example.com
     regions:
-    - us-east-2
-    template: templates/another-workload.template.yaml
+      - ap-southeast-1
+    template: templates/cf-entrypoint-new-vpc.template.yaml
