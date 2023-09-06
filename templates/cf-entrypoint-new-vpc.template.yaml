@@ -160,11 +160,11 @@ Parameters:
     Default: ''
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    Default: aws-quickstart
+    Default: aws-ia-us-east-1
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/.]*$
-    Default: quickstart-crest-infosolutions-cloudmeet/
+    Default: cfn-ps-crest-infosolutions-cloudmeet/
     Type: String
   QSS3BucketRegion:
     Default: 'ap-southeast-1'
@@ -177,7 +177,7 @@ Conditions:
   EvalEnv: !Equals
     - !Ref DeploymentType
     - 'Eval'
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia-us-east-1']
   3AZCondition: !Equals [!Ref 'NumberOfAvalZones', '3']
 Rules:
   ValidateProdDeploymentType:
@@ -225,7 +225,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/quickstart-aws-vpc/templates/aws-vpc.template.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/cfn-ps-aws-vpc/templates/aws-vpc.template.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
