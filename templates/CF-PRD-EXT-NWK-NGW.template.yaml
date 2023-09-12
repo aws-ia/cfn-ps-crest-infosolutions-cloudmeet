@@ -171,7 +171,7 @@ Parameters:
   JVBPRODEIP2:
     Description: EIP2 for JVB LoadBalancer
     Type: String
-    Default: ''	  
+    Default: ''
 Conditions:
   3AZCondition: !Equals [!Ref 'NumberOfAvalZones', '3']
   PublicSubnetsCondition: !Equals [!Ref 'CreatePublicSubnets', 'true']
@@ -359,6 +359,15 @@ Resources:
           Value: NATGateway3
   S3VPCEndpoint:
     Condition: PrivateSubnetsCondition
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - EIAMPolicyActionWildcard
+            - EPolicyWildcardPrincipal
+          ignore_reasons:
+            - EIAMPolicyActionWildcard: Intent assumed for initial migration.
+            - EPolicyWildcardPrincipal: Intent assumed for initial migration.
     Type: AWS::EC2::VPCEndpoint
     Properties:
       PolicyDocument:

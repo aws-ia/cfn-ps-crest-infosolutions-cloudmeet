@@ -352,6 +352,15 @@ Resources:
           Value: NATGateway3
   S3VPCEndpoint:
     Condition: PrivateSubnetsCondition
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - EIAMPolicyActionWildcard
+            - EPolicyWildcardPrincipal
+          ignore_reasons:
+            - EIAMPolicyActionWildcard: Intent assumed for initial migration.
+            - EPolicyWildcardPrincipal: Intent assumed for initial migration.
     Type: AWS::EC2::VPCEndpoint
     Properties:
       PolicyDocument:

@@ -142,7 +142,7 @@ Resources:
   JvbLogGroup:
     Type: 'AWS::Logs::LogGroup'
     Properties:
-      LogGroupName: jvb-log	
+      LogGroupName: jvb-log
       
   ECSTDRCHAT:
     Type: 'AWS::ECS::TaskDefinition'
