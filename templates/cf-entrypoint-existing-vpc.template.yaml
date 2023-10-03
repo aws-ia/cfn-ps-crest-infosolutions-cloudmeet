@@ -1,0 +1,563 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This template creates a virtual private cloud (VPC) for a Multi-AZ, multitier deployment AWS workload. It deploys a VPC with Amazon Elastic File System (Amazon EFS) and AWS Fargate. The cluster is configured to use an Amazon Simple Storage Service (Amazon S3) bucket for environment variables. This template also creates Amazon Elastic Container Service (Amazon ECS) instances and related resources. (qs-1shsu3b91)
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9006 # temporary to get rid of warnings
+        - W9002 # temporary to get rid of warnings
+        - W9003 # temporary to get rid of warnings
+        - W3005 # temporary to get rid of warnings
+        - W9901 # Not passing all the default parameters to reduce verbosity
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Application version
+      Parameters:
+        - DeploymentType
+    - Label:
+        default: Existing VPC configuration
+      Parameters:
+      - VPCID
+      - VPCCIDRBLK
+      - NumberOfAvalZones
+      - AvailabilityZones
+      - PublicSubnet1ID
+      - PublicSubnet2ID
+      - PublicSubnet3ID
+      - PrivateSubnet1ACIDR
+      - PrivateSubnet2ACIDR
+      - PrivateSubnet3ACIDR
+    - Label:
+        default: 'Parameters that need attention'
+      Parameters:
+      - Password
+      - CompanyName
+      - CloudmeetDomain
+      - CloudcallDomain
+      - CertificateID
+    - Label:
+        default: 'AWS Quick Start configuration'
+      Parameters:
+        - QSS3BucketName
+        - QSS3KeyPrefix
+        - QSS3BucketRegion
+    ParameterLabels:
+      AvailabilityZones:
+        default: Availability Zones
+      NumberOfAvalZones:
+        default: Number Of Availability Zones
+      PublicSubnet1ID:
+        default: Public subnet 1 CIDR
+      PublicSubnet2ID:
+        default: Public subnet 2 CIDR
+      PublicSubnet3ID:
+        default: Public subnet 3 CIDR
+      PrivateSubnet1ACIDR:
+        default: Private subnet 1 CIDR
+      PrivateSubnet2ACIDR:
+        default: Private subnet 2 CIDR
+      PrivateSubnet3ACIDR:
+        default: Private subnet 3 CIDR
+      VPCID:
+        default: VPC ID
+      VPCCIDRBLK:
+        default: VPC CIDR block
+      QSS3BucketName:
+        default: Quick Start S3 bucket name
+      QSS3KeyPrefix:
+        default: Quick Start S3 key prefix
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket Region
+Parameters:
+  DeploymentType:
+    AllowedValues:
+      - 'Eval'
+      - 'Prod'
+    Default: 'Eval'
+    Description: Specify either the evaluation or production version.
+    Type: String
+  VPCID:
+    Type: "AWS::EC2::VPC::Id"
+    Description: ID of your existing VPC (e.g., vpc-0343606e).
+    Default: "vpc-000xxxxx"
+  VPCCIDRBLK:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    Type: String
+    Description: CIDR block parameter must be in the form x.x.x.x/16.
+    Default: 172.31.0.0/16
+  AvailabilityZones:
+    Description: List of Availability Zones to use for the VPC subnets.
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+  NumberOfAvalZones:
+    AllowedValues:
+      - '2'
+      - '3'
+    Description: Number of Availability Zone parameters must be an integer.
+    Default: '2'
+    Type: String
+  PrivateSubnet1ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16–28.
+    Default: 172.31.112.0/19
+    Description: CIDR block for private subnet 1, located in Availability Zone 1. Update the default value according to your AWS environment.
+    Type: String
+  PrivateSubnet2ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16–28.
+    Default: 172.31.128.0/19
+    Description: CIDR block for private subnet 2, located in Availability Zone 2. Update the default value according to your AWS environment.
+    Type: String
+  PrivateSubnet3ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16–28.
+    Default: 172.31.144.0/19
+    Description: CIDR block for private subnet 3, located in Availability Zone 3. Update the default value according to your AWS environment.
+    Type: String
+  PublicSubnet1ID:
+    Type: "AWS::EC2::Subnet::Id"
+    Description: ID of public subnet 1, located in Availability Zone 1 of your existing VPC (e.g., subnet-a0246dcd).
+    Default: "subnet-xxxxxxx"
+  PublicSubnet2ID:
+    Type: "AWS::EC2::Subnet::Id"
+    Description: ID of public subnet 2, located in Availability Zone 2 of your existing VPC (e.g., subnet-b0246dcd).
+    Default: "subnet-xxxxxxx"
+  PublicSubnet3ID:
+    Type: "AWS::EC2::Subnet::Id"
+    Description: ID of public subnet 3, located in Availability Zone 3 of your existing VPC (e.g., subnet-c0246dcd).
+    Default: "subnet-xxxxxx"
+  Password:
+    Description: Password is required for internal services (must be at least 8 alphanumeric characters).
+    Type: String
+    Default: ''
+    NoEcho: true
+  CompanyName:
+    Description: (Required only for evaluation environments.) Provide the name of your subdomain (no more than 8 alphanumeric characters).
+    Type: String
+    Default: ''
+  CloudmeetDomain:
+    Description: DNS name for CloudMeet (e.g., cloudmeet.example.com).
+    Type: String
+    Default: ''
+  CloudcallDomain:
+    Description: DNS name for CloudCall (e.g., cloudmeet.example.com).
+    Type: String
+    Default: ''
+  CertificateID:
+    Description: Provide an SSL ID for the SSL-enabled Network Load Balancer.
+    Type: String
+    Default: ''
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    Default: aws-ia-us-east-1
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/.]*$
+    Default: cfn-ps-crest-infosolutions-cloudmeet/
+    Type: String
+  QSS3BucketRegion:
+    Default: 'ap-southeast-1'
+    Description: Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. If you use your own bucket, you must specify this value.
+    Type: String
+Conditions:
+  ProdEnv: !Equals
+    - !Ref DeploymentType
+    - 'Prod'
+  EvalEnv: !Equals
+    - !Ref DeploymentType
+    - 'Eval'
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia-us-east-1']
+  3AZCondition: !Equals [!Ref NumberOfAvalZones, '3']
+Rules:
+  ValidateProdDeploymentType:
+    RuleCondition: !Equals
+      - !Ref DeploymentType
+      - 'Prod'
+    Assertions:
+      - Assert: !Not
+          - !Equals
+            - !Ref Password
+            - ''
+        AssertDescription: Password is required for internal services.
+      - Assert: !Not
+          - !Equals
+            - !Ref CertificateID
+            - ''
+        AssertDescription: ACM certificate value cannot be null for production environments.
+      - Assert: !Not
+          - !Equals
+            - !Ref CloudmeetDomain
+            - ''
+        AssertDescription: Required for the CloudMeet application.
+      - Assert: !Not
+          - !Equals
+            - !Ref CloudcallDomain
+            - ''
+        AssertDescription: Required for the CloudMeet application.
+  ValidateEvalDeploymentType:
+    RuleCondition: !Equals
+      - !Ref DeploymentType
+      - 'Eval'
+    Assertions:
+      - Assert: !Not
+          - !Equals
+            - !Ref Password
+            - ''
+        AssertDescription: Password is required for internal services.
+      - Assert: !Not
+          - !Equals
+            - !Ref CompanyName
+            - ''
+        AssertDescription: Required for the subdomain (e.g., companyname.cloudmeet.biz or companyname-call.cloudmeet.biz).
+Resources:
+  ECSClusEfsRoleStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/CF-ECS-EFS-TASKROLE.template.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+
+  ProdTaskDefStack:
+    Condition: ProdEnv
+    DependsOn: ECSClusEfsRoleStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/CF-PRD-EXT-TSKDEF.template.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        EfsAccessPoint1:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint1
+        EfsAccessPoint2:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint2
+        EfsAccessPoint3:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint3
+        EfsAccessPoint4:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint4
+        EfsAccessPoint5:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint5
+        EfsAccessPoint6:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint6
+        EfsAccessPoint7:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint7
+        EfsAccessPoint8:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint8
+        ElasticFileSystemResource:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.ElasticFileSystemResource
+        TaskScaleRole:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.TaskScaleRole
+        TaskExecutionRole:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.TaskExecutionRole
+        Password: !Ref Password
+        CloudcallDomain: !Ref CloudcallDomain
+        CloudmeetDomain: !Ref CloudmeetDomain
+
+  EvalTaskDefStack:
+    Condition: EvalEnv
+    DependsOn: ECSClusEfsRoleStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/CF-EVL-EXT-TSKDEF.template.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        EfsAccessPoint1:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint1
+        EfsAccessPoint2:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint2
+        EfsAccessPoint3:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint3
+        EfsAccessPoint4:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint4
+        EfsAccessPoint5:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint5
+        EfsAccessPoint6:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint6
+        EfsAccessPoint7:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint7
+        EfsAccessPoint8:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.EfsAccessPoint8
+        ElasticFileSystemResource:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.ElasticFileSystemResource
+        TaskScaleRole:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.TaskScaleRole
+        TaskExecutionRole:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.TaskExecutionRole
+        CompanyName: !Ref CompanyName
+        Password: !Ref Password
+  ProdNetworkStack:
+    Condition: ProdEnv
+    DependsOn: ProdTaskDefStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/CF-PRD-EXT-NWK-NGW.template.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        VPCID: !Ref VPCID
+        VPCCIDR: !Ref VPCCIDRBLK
+        AvailabilityZones:
+          Fn::Join:
+          - ','
+          - Ref: 'AvailabilityZones'
+        NumberOfAvalZones: !Ref NumberOfAvalZones
+        PublicSubnet1: !Ref PublicSubnet1ID
+        PublicSubnet2: !Ref PublicSubnet2ID
+        PublicSubnet3: !If [3AZCondition, !Ref PublicSubnet3ID, !Ref 'AWS::NoValue']
+        PrivateSubnet1ACIDR: !Ref PrivateSubnet1ACIDR
+        PrivateSubnet2ACIDR: !Ref PrivateSubnet2ACIDR
+        PrivateSubnet3ACIDR: !If [3AZCondition, !Ref PrivateSubnet3ACIDR, !Ref 'AWS::NoValue']
+        ElasticFileSystemResource:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.ElasticFileSystemResource
+        RCHATPRODEIP1:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.RCHATEIP1
+        RCHATPRODEIP2:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.RCHATEIP2
+        JVBPRODEIP1:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.JVBEIP1
+        JVBPRODEIP2:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.JVBEIP2
+        CertificateID: !Ref CertificateID
+  EvalNetworkStack:
+    Condition: EvalEnv
+    DependsOn: EvalTaskDefStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/CF-EVL-EXT-NWK-NGW.template.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        VPCID: !Ref VPCID
+        VPCCIDR: !Ref VPCCIDRBLK
+        AvailabilityZones:
+          Fn::Join:
+          - ','
+          - Ref: 'AvailabilityZones'
+        NumberOfAvalZones: !Ref NumberOfAvalZones
+        PublicSubnet1: !Ref PublicSubnet1ID
+        PublicSubnet2: !Ref PublicSubnet2ID
+        PublicSubnet3: !If [3AZCondition, !Ref PublicSubnet3ID, !Ref 'AWS::NoValue']
+        PrivateSubnet1ACIDR: !Ref PrivateSubnet1ACIDR
+        PrivateSubnet2ACIDR: !Ref PrivateSubnet2ACIDR
+        PrivateSubnet3ACIDR: !If [3AZCondition, !Ref PrivateSubnet3ACIDR, !Ref 'AWS::NoValue']
+        ElasticFileSystemResource:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.ElasticFileSystemResource
+        RCHATEVALEIP1:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.RCHATEIP1
+        RCHATEVALEIP2:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.RCHATEIP2
+        JVBEVALEIP1:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.JVBEIP1
+        JVBEVALEIP2:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.JVBEIP2
+  ProdServiceStack:
+    Condition: ProdEnv
+    DependsOn: ProdNetworkStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/CF-PRD-EXT-SVC-NGW.template.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        NumberOfAvalZones: !Ref NumberOfAvalZones
+        PrivateSubnet1A:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.PrivateSubnet1AID
+        PrivateSubnet2A:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.PrivateSubnet2AID
+        PrivateSubnet3A: !If [3AZCondition, !GetAtt 'ProdNetworkStack.Outputs.PrivateSubnet3AID', !Ref 'AWS::NoValue']
+        ContainerSecurityGroup:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.ContainerSecurityGroup
+        ECSCluster:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.ECSCluster
+        JVBPRODTLSTG:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.JVBPRODTLSTG
+        JVBPRODUDPTG:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.JVBPRODUDPTG
+        RCHATPRODTLSTG:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.RCHATPRODTLSTG
+        JVBDiscoveryService:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.JVBDiscoveryService
+        RCHATPRODNLBURL:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.RCHATPRODNLBUrl
+        JVBPRODNLBURL:
+          Fn::GetAtt:
+          - ProdNetworkStack
+          - Outputs.JVBPRODNLBUrl
+        CloudcallDomain: !Ref CloudcallDomain
+        CloudmeetDomain: !Ref CloudmeetDomain
+        ECSTDJVB:
+          Fn::GetAtt:
+          - ProdTaskDefStack
+          - Outputs.ECSTDJVB
+        ECSTDJITSI:
+          Fn::GetAtt:
+          - ProdTaskDefStack
+          - Outputs.ECSTDJITSI
+        ECSTDRCHAT:
+          Fn::GetAtt:
+          - ProdTaskDefStack
+          - Outputs.ECSTDRCHAT
+  EvalServiceStack:
+    Condition: EvalEnv
+    DependsOn: EvalNetworkStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/CF-EVL-EXT-SVC-NGW.template.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        NumberOfAvalZones: !Ref NumberOfAvalZones
+        PrivateSubnet1A:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.PrivateSubnet1AID
+        PrivateSubnet2A:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.PrivateSubnet2AID
+        PrivateSubnet3A: !If [3AZCondition, !GetAtt 'EvalNetworkStack.Outputs.PrivateSubnet3AID', !Ref 'AWS::NoValue']
+        ContainerSecurityGroup:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.ContainerSecurityGroup
+        ECSCluster:
+          Fn::GetAtt:
+          - ECSClusEfsRoleStack
+          - Outputs.ECSCluster
+        JVBEVALTLSTG:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.JVBEVALTLSTG
+        JVBEVALUDPTG:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.JVBEVALUDPTG
+        RCHATEVALTLSTG:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.RCHATEVALTLSTG
+        JVBDiscoveryService:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.JVBDiscoveryService
+        RCHATEVALNLBURL:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.RCHATEVALNLBUrl
+        JVBEVALNLBURL:
+          Fn::GetAtt:
+          - EvalNetworkStack
+          - Outputs.JVBEVALNLBUrl
+        CloudcallDomain:
+          Fn::Join:
+          - ''
+          - - !Ref 'CompanyName'
+            - '-'
+            - 'call.cloudmeet.biz'
+        CloudmeetDomain:
+          Fn::Join:
+          - ''
+          - - !Ref 'CompanyName'
+            - '.'
+            - 'cloudmeet.biz'
+        ECSTDJVB:
+          Fn::GetAtt:
+          - EvalTaskDefStack
+          - Outputs.ECSTDJVB
+        ECSTDJITSI:
+          Fn::GetAtt:
+          - EvalTaskDefStack
+          - Outputs.ECSTDJITSI
+        ECSTDRCHAT:
+          Fn::GetAtt:
+          - EvalTaskDefStack
+          - Outputs.ECSTDRCHAT
