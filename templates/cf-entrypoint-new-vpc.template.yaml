@@ -160,7 +160,7 @@ Parameters:
     Default: ''
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    Default: aws-ia-us-east-1
+    Default: aws-ia
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/.]*$
@@ -177,7 +177,7 @@ Conditions:
   EvalEnv: !Equals
     - !Ref DeploymentType
     - 'Eval'
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia-us-east-1']
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia']
   3AZCondition: !Equals [!Ref 'NumberOfAvalZones', '3']
 Rules:
   ValidateProdDeploymentType:
